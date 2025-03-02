@@ -1,35 +1,43 @@
 # THIS FILE IS NOT SUPPORTED BY ACTIVISION
 # THIS FILE IS UNDER THE LGPL LICENSE AS WELL
-# AccesibilityConfig.py
-# 1st March 2025, by USS Sovereign, and tweaked by Noat and Alex SL Gato (CharaToLoki)
+# AccessibilityConfig.py
+# 2nd March 2025, by USS Sovereign, and tweaked by Noat and Alex SL Gato (CharaToLoki)
 #         Inspired by the Shield Percentages mod by Defiant. It was originally made pre-2010 with the goal of showing lots of accessibility options, such as for colorblind people.
 #
 # Modify, redistribute to your liking. Just remember to give credit where due.
 #################################################################################################################
-# This file also has the option to import a font list from files located at the "extraConfigPath" indicated below. From there people can add fonts - but remember, before adding a new font to this script:
+# 0.13 Update: if your installation has the "scripts/FontExtension.py" script (which extends the TGFontManager class with functions which track and return font list and default font) called at the very beginning, now it will fetch Fonts automatically and will ignore manual additions. However, the script still supports 0.12 ("Legacy") manual additions, which the script will fall back to in case of Sovereign's file (or equivalent) not being present.
+# This latter method consists on manually importing a font list from files located at the "extraConfigPath" indicated below. From there people can add fonts.
+# But remember, before adding a new font to this script (or to all scripts, also applies for >= 0.13):
 # 1. The font file must exist beforehand. For new fonts, a new proper file (like those font files at script/Icons) must have already been created first.
-# 2. That font must have been registered to the App.g_kFontManager, in a not disimilar way to the line used on scripts/Icons/FontsAndIcons.py: "App.g_kFontManager.RegisterFont("Crillee", 5, "Crillee5", "LoadCrillee5")" (first parameter being the font name, second font size, third the actual file located at scripts/Icons/ and finally the function inside that file that actually takes care of loading the new font for that size).
-# Below, we have an example used for listing the Default fonts that a regular BC Install has into our AccesibiltiyConfig script, on a file called DefaultFonts.py:
+# 2. That font must have been registered to the App.g_kFontManager, in a not dissimilar way to the line used on scripts/Icons/FontsAndIcons.py: "App.g_kFontManager.RegisterFont("Crillee", 5, "Crillee5", "LoadCrillee5")" (first parameter being the font name, second font size, third the actual file located at scripts/Icons/ and finally the function inside that file that actually takes care of loading the new font for that size).
+# Below, we have a legacy example file used for listing the Default fonts that a regular BC Install has into our AccessibilityConfig script, on a file called DefaultFonts.py:
 """
 # THIS FILE IS NOT SUPPORTED BY ACTIVISION
 # THIS FILE IS UNDER THE LGPL LICENSE AS WELL
 # DefaultFonts.py
 # 1st March 2025, by Alex SL Gato (CharaToLoki)
 # Version: 1.0
-# Meant to be used alongside the AccesibilityConfig UMM option (located at scripts/Custom/UnifiedMainMenu/ConfigModules/Options/), this file must be under scripts/Custom/UnifiedMainMenu/ConfigModules/Options/AccesibilityConfigFiles
+# Meant to be used alongside the AccessibilityConfig UMM option (located at scripts/Custom/UnifiedMainMenu/ConfigModules/Options/), this file must be under scripts/Custom/UnifiedMainMenu/ConfigModules/Options/AccessibilityConfigFiles
 ##################################
 # This file takes care of listing the default Fonts and Sizes that a regular STBC install supports.
 dFont = {
-	"Crillee": [5, 6, 9, 12, 15],
-	"LCARSText": [5, 6, 9, 12, 15],
-	"Tahoma": [8, 14],
-	"Arial": [8],
-	"Serpentine": [12],
+    "Crillee": [5, 6, 9, 12, 15],
+    "LCARSText": [5, 6, 9, 12, 15],
+    "Tahoma": [8, 14],
+    "Arial": [8],
+    "Serpentine": [12],
 }
 """
-#
+
+import App
+import string
+import nt
+import traceback
+
+# noinspection SpellCheckingInspection
 MODINFO = {"Author": "\"USS Sovereign\" (mario0085), Noat (noatblok),\"Alex SL Gato\" (andromedavirgoa@gmail.com)",
-           "Version": "0.12",
+           "Version": "0.13",
            "License": "LGPL",
            "Description": "Read the small title above for more info"
            }
@@ -37,27 +45,20 @@ MODINFO = {"Author": "\"USS Sovereign\" (mario0085), Noat (noatblok),\"Alex SL G
 #################################################################################################################
 #
 
-import App
-import Foundation
-import string
-import nt
-import traceback
-
 LCARS = __import__(App.GraphicsModeInfo_GetCurrentMode().GetLcarsModule())
 
 pModule = None
+# noinspection PyBroadException
 try:
     pModule = __import__("SavedConfigs.AccessibilityConfigVals")
 except:
     pModule = None
 
 configPath = "scripts\\Custom\\UnifiedMainMenu\\ConfigModules\\Options\\SavedConfigs\\AccessibilityConfigVals.py"
-extraConfigPath = "scripts\\Custom\\UnifiedMainMenu\\ConfigModules\\Options\\AccesibilityConfigFiles"
 
 ET_SAVED_CONFIG = App.UtopiaModule_GetNextEventType()  # You may wonder, ¿why? Because it is actually possible to play a mission and have access to the Customize configurations on the fly as long as the last Configure Window you opened was Customize
 ET_SELECT_BUTTON = App.UtopiaModule_GetNextEventType()
 
-pSaveButton = None
 sSaveButton = "Save Config"
 sSaveNotSaved = "Save Config: Unsaved changes. Save to apply."
 canChangeSave = None
@@ -67,21 +68,8 @@ dConfig = {}
 issues = 0  # To prevent another case like Galaxy Charts wrong configuration values breaking an entire install - yes, like KCS' case.
 
 
-def ResetButtonString(pAction, pButton, myName):
-    try:
-        global pSaveButton
-        if pSaveButton and myName != None:
-            pSaveButton.SetName(App.TGString(myName))
-        else:
-            print
-            "AccesibilityConfig.ResetButtonString: ERR.: missing button"
-    except:
-        pass
-
-    return 0
-
-
-def SaveConfig(pObject, pEvent):
+# noinspection PyTypeChecker
+def SaveConfig():
     file = nt.open(configPath, nt.O_WRONLY | nt.O_TRUNC | nt.O_CREAT | nt.O_BINARY)
     nt.write(file, "ShowPercent = " + str(dConfig["ShowPercent"]))
     nt.write(file, "\nShowBar = " + str(dConfig["ShowBar"]))
@@ -96,29 +84,17 @@ def SaveConfig(pObject, pEvent):
     pEvent = App.TGStringEvent_Create()
     pEvent.SetEventType(ET_SAVED_CONFIG)
     # pEvent.SetDestination(None)
-    pEvent.SetString("SAVED BC ACCESIBILITY")
+    pEvent.SetString("SAVED BC ACCESSIBILITY")
     App.g_kEventManager.AddEvent(pEvent)
-
-    # Just some niceties for people
-    global pSaveButton, canChangeSave
-    currentTime = App.g_kUtopiaModule.GetGameTime()
-    if pSaveButton and (canChangeSave == None or currentTime > canChangeSave):
-        canChangeSave = currentTime + saveMsgDelay + 0.1
-        pSaveButton.SetName(App.TGString("CONFIGURATION SAVED"))
-        pSequence = App.TGSequence_Create()
-        pAction = App.TGScriptAction_Create(__name__, "ResetButtonString", pSaveButton, sSaveButton)
-        pSequence.AddAction(pAction, None, saveMsgDelay)
-        pSequence.Play()
 
 
 def SafeConfigStatement(variable, pMyModule, default, issue=0):
-    myVariable = default
+    # noinspection PyBroadException
     try:
-        if pMyModule != None and hasattr(pMyModule, variable):
+        if pMyModule is not None and hasattr(pMyModule, variable):
             myVariable = getattr(pMyModule, variable)
         else:
-            print
-            configPath, " has no ", variable, " attribute. This will be addressed"
+            # print(configPath, " has no ", variable, " attribute. This will be addressed")
             myVariable = default
             issue = issue + 1
     except:
@@ -129,6 +105,7 @@ def SafeConfigStatement(variable, pMyModule, default, issue=0):
     return myVariable, issue
 
 
+# noinspection GrazieInspection
 dRadixNotation = [
     [",", "Comma (,)"],
     [".", "Lower point (.)"],
@@ -149,62 +126,40 @@ _g_dExcludeSomePlugins = {
 }
 
 
-def FuseTwoLists(auxA, auxB):
-    aux1 = auxA
-    if len(aux1) > 1:
-        aux1.sort()
-    aux2 = []
-    if type(auxB) == type([]):
-        for item in auxB:
-            if type(item) == type(1):
-                aux2.append(item)
-        aux2.sort()
-    elif type(auxB) == type(1):
-        aux2.append(auxB)
-    if len(aux2) > 0:
-        i = 0
-        j = 0
-        aux3 = []
-        while (i < len(aux1) and j < len(aux2)):
-            if aux1[i] < aux2[j]:
-                aux3.append(aux1[i])
-                i = i + 1
-            elif aux1[i] == aux2[j]:
-                aux3.append(aux1[i])
-                i = i + 1
-                j = j + 1
-            else:
-                aux3.append(aux2[j])
-                j = j + 1
-        while (i < len(aux1)):
-            aux3.append(aux1[i])
-            i = i + 1
-        while (j < len(aux2)):
-            aux3.append(aux2[j])
-            j = j + 1
-        return aux3
-    else:
-        return []
+def FuseTwoLists(l1, l2):
+    def gen_dict(*args):
+        d = {}
+        for k in args:
+            for item in k:
+                d[item] = item
+        return d.keys()
+
+    result = list(gen_dict(l1, l2))
+    result.sort()
+    return result
 
 
-font = App.g_kFontManager.GetDefaultFont()
+# Based on LoadExtraPlugins by Dasher42 and MLeo's, but heavily modified so it only imports a few things
+
+font = App.g_kFontManager.GetDefaultFontInfo()
 fonts = App.g_kFontManager.GetFontList()
 
 defaultFont = font.name
 defaultSize = font.size
 for font in fonts:
-    l = []
+    lst = []
+    # noinspection PyUnresolvedReferences
     if dFont.has_key(font.name):
-        l = dFont[font.name]
+        lst = dFont[font.name]
     else:
-        dFont[font.name] = l
-    l.append(font.size)
+        dFont[font.name] = lst
+    lst.append(font.size)
 
 listedFonts = list(dFont.keys())
 listedFonts.sort()
-if not defaultFont in dFont.keys():
+if defaultFont not in dFont.keys():
     defaultFont = listedFonts[0]
-if not defaultSize in dFont[defaultFont]:
+if defaultSize not in dFont[defaultFont]:
     defaultSize = dFont[defaultFont][0]
 
 dConfig["ShowPercent"], issues = SafeConfigStatement("ShowPercent", pModule, 0, issues)
@@ -214,31 +169,31 @@ dConfig["ShowFraction"], issues = SafeConfigStatement("ShowFraction", pModule, 0
 dConfig["NumberDecimals"], issues = SafeConfigStatement("NumberDecimals", pModule, 0, issues)
 dConfig["RadixNotation"], issues = SafeConfigStatement("RadixNotation", pModule, ".", issues)
 
-dConfig["sFont"], issues = SafeConfigStatement("sFont", pModule, "Crillee", issues)
+dConfig["sFont"], issues = SafeConfigStatement("sFont", pModule, defaultFont, issues)
 dConfig["FontSize"], issues = SafeConfigStatement("FontSize", pModule, defaultSize, issues)
 
 pFontSubMenu = None
 sBaseFMenu = "Font Selection: "
 sSeparator = ", size "
 
-# sColor = {"Default": [], } # TO-DO DIFFERENT HEALTH BAR COLORS? ALSO TGParagraph.SetColor:
+# sColor = {"Default": [], } # TO-DO DIFFERENT HEALTH BAR COLORS? ALSO, TGParagraph.SetColor:
 # TO-DO MAKE IT SO IT SAVES THE ORIGINAL App colors, and then it temporarily replaces its values.
 
 if issues > 0:
-    print
-    "Re-applying a safe save Accesibility Config"
+    # print("Re-applying a safe save Accessibility Config")
+    # noinspection PyBroadException
     try:
-        SaveConfig(None, None)
+        SaveConfig()
     except:
         traceback.print_exc()
 
 
 def GetName():
-    return "BC Accessibility"
+    return "Hull Indicator Options"
 
 
 # Builds our menu.  Remember to add the "return App.TGPane_Create(0,0)" command!
-def CreateMenu(pOptionsPane, pContentPanel, bGameEnded=0):
+def CreateMenu(pOptionsPane, pContentPanel, _bGameEnded=0):
     global pFontSubMenu
 
     CreateButton("Show Health Bar", pContentPanel, pOptionsPane, pContentPanel, __name__ + ".BarToggle",
@@ -256,46 +211,38 @@ def CreateMenu(pOptionsPane, pContentPanel, bGameEnded=0):
     pFontSubMenu = CreateFontMenu(sBaseFMenu + str(dConfig["sFont"]) + str(sSeparator) + str(dConfig["FontSize"]),
                                   pContentPanel, pOptionsPane, pContentPanel)
 
-    global pSaveButton
-    pSaveButton = CreateButton(sSaveButton, pContentPanel, pOptionsPane, pContentPanel,
-                               __name__ + ".SaveConfig")  # TO-DO MAKE IT SO THE SAVE CONFIG BUTTON CHANGES TO ANOTHER VALUE FOR A FEW SECS
     return App.TGPane_Create(0, 0)
 
 
-def BarToggle(object, event):
+def BarToggle(_object, event):
     # global ShowBar
     global dConfig
     dConfig["ShowBar"] = not dConfig["ShowBar"]
     App.STButton_Cast(event.GetSource()).SetChosen(
         dConfig["ShowBar"])  # Found method to get the button from BridgePlugin.py
 
-    global pSaveButton
-    if pSaveButton:
-        ResetButtonString(None, pSaveButton, sSaveNotSaved)
+    SaveConfig()
 
 
-def PercentToggle(object, event):
+def PercentToggle(_object, event):
     # global ShowPercent
     global dConfig
     dConfig["ShowPercent"] = not dConfig["ShowPercent"]
     App.STButton_Cast(event.GetSource()).SetChosen(dConfig["ShowPercent"])
 
-    global pSaveButton
-    if pSaveButton:
-        ResetButtonString(None, pSaveButton, sSaveNotSaved)
+    SaveConfig()
 
 
-def FractionToggle(object, event):
+def FractionToggle(_object, event):
     # global ShowFraction
     global dConfig
     dConfig["ShowFraction"] = not dConfig["ShowFraction"]
     App.STButton_Cast(event.GetSource()).SetChosen(dConfig["ShowFraction"])
 
-    global pSaveButton
-    if pSaveButton:
-        ResetButtonString(None, pSaveButton, sSaveNotSaved)
+    SaveConfig()
 
 
+# noinspection PyUnresolvedReferences
 def HandleKeyboardGoBetween(pObject, pEvent):
     pPara = App.TGParagraph_Cast(pEvent.GetDestination())
     pParent = App.TGPane_Cast(pPara.GetParent())
@@ -310,27 +257,26 @@ def HandleKeyboardGoBetween(pObject, pEvent):
         sNewVal = lList[0] + "." + string.join(lList[1:-1], "")
         pPara.SetString(sNewVal)
 
-    if pNewVal.GetCString() != None and pNewVal.GetCString() != "":
+    if pNewVal.GetCString() is not None and pNewVal.GetCString() != "":
         dConfig[pString.GetCString()] = int(pNewVal.GetCString())
         if pString.GetCString() == "sFont" or pString.GetCString() == "FontSize":
             UpdateFontSubMenu(0)
 
-        global pSaveButton
-        if pSaveButton:
-            ResetButtonString(None, pSaveButton, sSaveNotSaved)
+        SaveConfig()
 
     pObject.CallNextHandler(pEvent)
 
 
-def CreateTextEntryButton(sButtonName, pMenu, pOptionPane, pContentPanel, sVar, sFunction, isChosen=0, isToggle=0,
-                          EventInt=0, ET_EVENT=None):
+def CreateTextEntryButton(sButtonName, pMenu, _pOptionPane, _pContentPanel, sVar, sFunction, _isChosen=0, _isToggle=0,
+                          _EventInt=0, _ET_EVENT=None):
     pTextField = CreateTextField(App.TGString(sButtonName), sVar, sFunction)
     pMenu.AddChild(pTextField)
 
 
 # From Custom\UnifiedMainMenu\ConfigModules\Options\Graphics\NanoFX by MLeoDaalder
-def CreateTextField(pName, sVar, sFunction):
+def CreateTextField(pName, sVar, _sFunction):
     pGraphicsMode = App.GraphicsModeInfo_GetCurrentMode()
+    # noinspection PyShadowingNames
     LCARS = __import__(pGraphicsMode.GetLcarsModule())
     fMaxWidth = LCARS.MAIN_MENU_CONFIGURE_CONTENT_WIDTH - 0.02
     pPane = App.TGPane_Create(fMaxWidth, 1.0)
@@ -349,9 +295,8 @@ def CreateTextField(pName, sVar, sFunction):
     pTText.SetColorBasedOnFlags()
     pTText.SetVisible()
 
-    pcLCARS = pGraphicsMode.GetLcarsString()
-
     pTextEntry = App.TGParagraph_Create(str(dConfig[sVar]))
+    # noinspection SpellCheckingInspection
     pTextEntry.SetIgnoreString(
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ*?\t\\/,<>\"|:;\'\n-+()&^%$#@!`~\n\r")
 
@@ -372,10 +317,12 @@ def CreateTextField(pName, sVar, sFunction):
     return pPane
 
 
-def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
+# noinspection PyPep8
+def SelectNext(pObject, pEvent, _variable=None, _sButtonName=None):
     if pEvent and hasattr(pEvent, "GetCString"):
         variable = pEvent.GetCString()
-        if variable != None and dConfig[variable] != None:
+        # noinspection PyUnboundLocalVariable
+        if variable is not None and dConfig[variable] is not None:
             # print "Called SelectNext for variable ", variable
             global dConfig
             pButton = pEvent.GetSource()
@@ -389,6 +336,7 @@ def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
                 return
 
             error = 0
+            # noinspection PyBroadException
             try:
                 if pButton.GetObjID() == App.NULL_ID:
                     error = 1
@@ -400,28 +348,26 @@ def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
                 return
 
             sButtonName = dConfig[str(variable) + str(" Menu Name")]
-            if sButtonName != None:
+            if sButtonName is not None:
                 lOptions = dConfig[str(variable) + str(" Menu Options")]
-                if lOptions != None:
+                if lOptions is not None:
                     if type(lOptions) == type([]) and len(lOptions) > 0:
-                        pNext = 0
                         iCounter = 0
                         found = 0
-                        value = "ERROR"
                         defaultValue = None
                         defaultName = "ERROR"
                         for s in lOptions:
                             iCounter = iCounter + 1
                             if type(s) == type([]):
                                 if len(s) >= 2:
-                                    if defaultValue == None:
+                                    if defaultValue is None:
                                         defaultValue = str(s[0])
                                         defaultName = str(s[1])
                                     if dConfig[variable] == str(s[0]):
                                         found = 1
                                         break
                                 elif len(s) == 1:
-                                    if defaultValue == None:
+                                    if defaultValue is None:
                                         defaultValue = str(s[0])
                                         defaultName = str(s[0])
                                     if dConfig[variable] == str(s[0]):
@@ -430,7 +376,7 @@ def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
 
                             elif type(s) == type({}):
                                 for k in s.keys():
-                                    if defaultValue == None:
+                                    if defaultValue is None:
                                         defaultValue = str(k)
                                         defaultName = str(s[k])
                                     if dConfig[variable] == str(k):
@@ -440,7 +386,7 @@ def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
                                     break
 
                             elif type(s) == type("") or type(s) == type(1) or type(s) == type(1.2):
-                                if defaultValue == None:
+                                if defaultValue is None:
                                     defaultValue = str(s)
                                     defaultName = str(s)
                                 if dConfig[variable] == str(s):
@@ -478,46 +424,46 @@ def SelectNext(pObject, pEvent, variable=None, sButtonName=None):
                                 changedSetting = 1
 
                         if changedSetting:
-                            global pSaveButton
-                            if pSaveButton:
-                                ResetButtonString(None, pSaveButton, sSaveNotSaved)
+                            SaveConfig()
 
     pObject.CallNextHandler(pEvent)
 
 
-def CreateMultipleChoiceButton(sButtonName, pMenu, pOptionsPane, pContentPanel, sFunction, variable, lOptions,
+# noinspection PyPep8
+def CreateMultipleChoiceButton(sButtonName, _pMenu, pOptionsPane, pContentPanel, sFunction, variable, lOptions,
                                isChosen=0, isToggle=0, EventInt=0, ET_EVENT=None):
     global dConfig
     pButton = None
-    if variable != None:
+    if variable is not None:
         pButton = CreateButton(str(variable), pContentPanel, pOptionsPane, pContentPanel, sFunction, isChosen, isToggle,
                                EventInt, ET_EVENT)
 
-        if dConfig[variable] != None:
+        if dConfig[variable] is not None:
             dConfig[str(variable) + str(" Menu Name")] = sButtonName
 
-            lOptionsProperContructed = []
+            lOptionsProperConstructed = []
             if type(lOptions) == type([]):
                 for s in lOptions:
-                    if s != None and (
+                    if s is not None and (
                             type(s) == type([]) or type(s) == type([]) or type(s) == type("") or type(s) == type(
                         1) or type(s) == type(1.2)):
-                        lOptionsProperContructed.append(s)
+                        lOptionsProperConstructed.append(s)
             elif type(lOptions) == type({}):
                 for s in lOptions.keys():
                     leType = lOptions[s]
-                    if leType != None and (
+                    if leType is not None and (
                             type(leType) == type([]) or type(leType) == type([]) or type(leType) == type("") or type(
                         leType) == type(1) or type(leType) == type(1.2)):
-                        lOptionsProperContructed.append(leType)
+                        lOptionsProperConstructed.append(leType)
             else:
                 if type(lOptions) == type("") or type(lOptions) == type(1) or type(lOptions) == type(1.2):
-                    lOptionsProperContructed.append(lOptions)
+                    lOptionsProperConstructed.append(lOptions)
 
-            dConfig[str(variable) + str(" Menu Options")] = lOptionsProperContructed
+            dConfig[str(variable) + str(" Menu Options")] = lOptionsProperConstructed
             found = 0
-            for s in lOptionsProperContructed:
-                if s != None:
+            entry = ""
+            for s in lOptionsProperConstructed:
+                if s is not None:
                     if type(s) == type([]):
                         if len(s) >= 2:
                             if dConfig[variable] == str(s[0]):
@@ -545,24 +491,26 @@ def CreateMultipleChoiceButton(sButtonName, pMenu, pOptionsPane, pContentPanel, 
                             pButton.SetName(App.TGString(sButtonName + str(s)))
                             break
 
+                    entry = s
             if found == 0:
-                print
-                "ATTENTION: The current configuration is not found on the default select names. It is possible the configuration for ", variable, " has been manually edited for a custom value."
-                pButton.SetName(App.TGString(sButtonName + "CUSTOM: " + str(s)))
+                # print(
+                #    "ATTENTION: The current configuration is not found on the default select names. It is possible the configuration for ",
+                #    variable, " has been manually edited for a custom value.")
+                # No clue what's this supposed to be handling but ensure we at least don't spit out an error
+                pButton.SetName(App.TGString(sButtonName + "CUSTOM: " + str(entry)))
         else:
             pButton.SetName(App.TGString(sButtonName + " ERROR: No variable " + str(variable) + " found."))
-            print
-            "ERROR on ", __name__, ".CreateMultipleChoiceButton: the specified variable for one of our calls is not found on our configuration."
+            # print("ERROR on ", __name__, ".CreateMultipleChoiceButton: the specified variable for one of our calls is not found on our configuration.")
     else:
-        print
-        "ERROR on ", __name__, ".CreateMultipleChoiceButton: the specified variable for one of our calls is None."
+        # print("ERROR on ", __name__, ".CreateMultipleChoiceButton: the specified variable for one of our calls is None.")
+        pass
 
     return pButton
 
 
-def CreateButton(sButtonName, pMenu, pOptionPane, pContentPanel, sFunction, isChosen=0, isToggle=0, EventInt=0,
+def CreateButton(sButtonName, pMenu, pOptionPane, _pContentPanel, sFunction, isChosen=0, isToggle=0, _EventInt=0,
                  ET_EVENT=None):
-    if ET_EVENT == None:
+    if ET_EVENT is None:
         ET_EVENT = App.UtopiaModule_GetNextEventType()
 
     pOptionPane.AddPythonFuncHandlerForInstance(ET_EVENT, sFunction)
@@ -582,26 +530,22 @@ def CreateButton(sButtonName, pMenu, pOptionPane, pContentPanel, sFunction, isCh
     return pButton
 
 
-def CreateFontMenu(sMenuName, pMenu, pOptionsPane, pContentPanel):
+def CreateFontMenu(sMenuName, pMenu, _pOptionsPane, _pContentPanel):
     pSubMenu = App.STMenu_Create(sMenuName)
     pSubMenu.AddPythonFuncHandlerForInstance(ET_SELECT_BUTTON, __name__ + ".HandleSelectButton")
 
-    # Done above for default favorite font
-    # listedFonts = list(dFont.keys())
-    # listedFonts.sort()
-
-    for font in listedFonts:
-        for i in range(len(dFont[font])):
+    for f in listedFonts:
+        for i in range(len(dFont[f])):
             pEvent = App.TGStringEvent_Create()
             pEvent.SetEventType(ET_SELECT_BUTTON)
             pEvent.SetDestination(pSubMenu)
-            s = "%s%s%d" % (font, sSeparator, dFont[font][i])
+            s = "%s%s%d" % (f, sSeparator, dFont[f][i])
             pEvent.SetString(str(s))
             pButton = App.STButton_Create(s, pEvent)
             pSubMenu.AddChild(pButton)
 
-    CreateTextEntryButton("Custom size (may cause font issues): ", pSubMenu, pOptionsPane, pSubMenu, "FontSize",
-                          __name__ + ".HandleKeyboardGoBetween")
+    # Not allowing this
+    # CreateTextEntryButton("Custom size (may cause font issues): ", pSubMenu, pOptionsPane, pSubMenu, "FontSize", __name__ + ".HandleKeyboardGoBetween")
     pMenu.AddChild(pSubMenu)
 
     return pSubMenu
@@ -612,7 +556,7 @@ def HandleSelectButton(pObject, pEvent):
     i = pEvent.GetCString()
 
     s = string.split(i, sSeparator)
-    if len(s) >= 2 and s[0] != None and s[0] != "" and s[1] != None and s[1] != "":
+    if len(s) >= 2 and s[0] is not None and s[0] != "" and s[1] is not None and s[1] != "":
         global dConfig
         dConfig["sFont"] = s[0]
         dConfig["FontSize"] = s[1]
@@ -621,10 +565,10 @@ def HandleSelectButton(pObject, pEvent):
 
 def UpdateFontSubMenu(close=0):
     global pFontSubMenu
+    # noinspection PyUnresolvedReferences
     pFontSubMenu.SetName(App.TGString(sBaseFMenu + str(dConfig["sFont"]) + str(sSeparator) + str(dConfig["FontSize"])))
     if close:
+        # noinspection PyUnresolvedReferences
         pFontSubMenu.Close()
 
-    global pSaveButton
-    if pSaveButton:
-        ResetButtonString(None, pSaveButton, sSaveNotSaved)
+    SaveConfig()

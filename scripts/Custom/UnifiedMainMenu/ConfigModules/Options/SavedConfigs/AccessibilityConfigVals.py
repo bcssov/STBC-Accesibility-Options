@@ -1,7 +1,7 @@
 ShowPercent = 1
 ShowBar = 1
-ShowFraction = 1
-NumberDecimals = 2
+ShowFraction = 0
+NumberDecimals = 0
 RadixNotation = "."
 sFont = "Crillee"
-FontSize = 5
+FontSize = 6

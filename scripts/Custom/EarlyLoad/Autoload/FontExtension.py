@@ -1,5 +1,5 @@
-# This will be the BCMM way
-# Trick is it requires early registration in BCMM it's done by importing this in FixApp.py file which is already modified
+# This is automatically loaded by the early load plugin loader. The loader just loads the module it's up to you to execute whatever logic you want if any.
+
 import App
 
 
@@ -30,7 +30,7 @@ def GetFontList(_self):
     return list(registry)
 
 
-def SetDefaultSontOverride(_self, name, size):
+def SetDefaultFontOverride(_self, name, size):
     global registry, defaultFont
     for font in registry:
         if font.name == name:
@@ -40,18 +40,18 @@ def SetDefaultSontOverride(_self, name, size):
 
 
 # noinspection PyUnresolvedReferences
-def GetDefaultFont(_self):
+def GetDefaultFontInfo(_self):
     global defaultFont
     if defaultFont:
         return Font(defaultFont.name, defaultFont.size, defaultFont.file, defaultFont.loadMethod)
     return None
 
 
-# Yes moneky patch to extend the logic, you can chain them the way you want to it will have no ill effects
+# Yes monkey patch to extend the logic, you can chain them the way you want to it will have no ill effects
 originalRegisterFont = App.TGFontManager.RegisterFont
 originalSetDefaultFont = App.TGFontManager.SetDefaultFont
 App.TGFontManager.RegisterFont = RegisterFontOverride
-App.TGFontManager.SetDefaultFont = SetDefaultSontOverride
+App.TGFontManager.SetDefaultFont = SetDefaultFontOverride
 # New method to expose lists
 App.TGFontManager.GetFontList = GetFontList
-App.TGFontManager.GetDefaultFont = GetDefaultFont
+App.TGFontManager.GetDefaultFontInfo = GetDefaultFontInfo
